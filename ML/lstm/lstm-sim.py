@@ -25,13 +25,13 @@ class LSTMRegressor(nn.Module):
 
 # 1. Load the saved model weights
 model = LSTMRegressor(input_dim=1, hidden_dim=64, num_layers=2, output_dim=1, dropout=0.1)
-model.load_state_dict(torch.load("lstm/lstm_regressor.pt"))
+model.load_state_dict(torch.load("lstm/lstm_regressor_v2.pt"))
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 model.to(device)
 model.eval()
 
 # 2. Load the CSV file simulating a real-time roast run.
-csv_file = "lstm/real_time_roast.csv"  # Adjust the path as needed.
+csv_file = "lstm/real_time_roast2.csv"  # Adjust the path as needed.
 df = pd.read_csv(csv_file)
 
 # 3. Set up a sliding window buffer and simulation parameters.
@@ -45,7 +45,7 @@ time_list = []
 
 print("Starting fast real-time simulation from CSV...")
 # Adjust sleep_time for faster simulation (e.g., 0.1 seconds per reading).
-sleep_time = 0.1
+sleep_time = 0.05
 
 for index, row in df.iterrows():
     # Get the current bean temperature reading
@@ -61,8 +61,9 @@ for index, row in df.iterrows():
         # Convert the window to tensor shape (1, window_size)
         input_tensor = torch.tensor([current_window], dtype=torch.float32).to(device)
         with torch.no_grad():
-            prediction = model(input_tensor)
-        predicted_value = prediction.item()
+            raw_prediction = model(input_tensor).item()
+        # Snap the continuous output to the nearest multiple of 5
+        predicted_value = round(raw_prediction / 5) * 5
         predicted_list.append(predicted_value)
         # Append the corresponding actual gas setting if available in CSV
         # (Assuming the CSV contains a column "gas_setting")

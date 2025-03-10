@@ -42,7 +42,7 @@ def create_dataloaders(X_train, y_train, X_test, y_test, batch_size=128):
     test_loader  = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     return train_loader, test_loader
 
-def train_model(model, train_loader, test_loader, epochs=20, lr=1e-3, device='cuda'):
+def train_model(model, train_loader, test_loader, epochs=40, lr=1e-3, device='cuda'):
     model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=lr)
     criterion = nn.MSELoss()  # You can experiment with nn.L1Loss() or Huber loss if desired
@@ -83,8 +83,8 @@ if __name__ == "__main__":
     print("Training on device:", device)
     
     # Train the model
-    model = train_model(model, train_loader, test_loader, epochs=20, lr=1e-3, device=device)
+    model = train_model(model, train_loader, test_loader, epochs=40, lr=1e-3, device=device)
     
     # Save the model
-    torch.save(model.state_dict(), "lstm_regressor.pt")
+    torch.save(model.state_dict(), "lstm_regressor_v2.pt")
     print("Model saved as lstm_regressor.pt")
