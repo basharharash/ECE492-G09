@@ -3,6 +3,7 @@ import time
 import json
 import shutil
 import urllib.parse
+from concurrent.futures import ProcessPoolExecutor
 from selenium import webdriver
 from dotenv import load_dotenv
 from selenium.webdriver.common.by import By
@@ -217,62 +218,99 @@ def process_detail(driver, detail_url: str, roast_id: str, valid: bool):
     driver.close()
     driver.switch_to.window(driver.window_handles[0])
 
-def process_all_pages(driver, name_filter: str, start_date: str, end_date: str):
+def gather_all_roasts(driver, name_filter, start_date, end_date):
     """
-    Paginate purely by updating the 'page' parameter in the URL
-    until we see the 'no matching records' text.
+    Uses your existing pagination logic to get all rows from all pages.
+    Returns a list of dictionaries: [{"id": ..., "url": ..., "valid": ...}, ...]
     """
+    all_rows = []
     page = 1
     while True:
-        print(f"Processing page {page}...")
-        
-        # Construct the filtered URL with the current page
-        filtered_url = construct_filtered_url(
-            name_filter,
-            start_date,
-            end_date,
-        )
+        print(f"Collecting data on page {page}...")
+        filtered_url = construct_filtered_url(name_filter, start_date, end_date)
         driver.get(filtered_url + "&page=" + str(page))
-        time.sleep(10)  # wait for page to load; adjust as needed
+        time.sleep(10)  # Wait for page to load
 
-        # Check if the "no data" element exists
+        # Check for the 'no data' element
         try:
-            no_data_element = driver.find_element(By.CLASS_NAME, "c-table__no-data")
-            # If found, it means there's no data on this page
+            driver.find_element(By.CLASS_NAME, "c-table__no-data")
             print("No matching records found. Stopping.")
             break
         except NoSuchElementException:
-            # If that element isn't found, we presumably have data
             pass
 
-        # Otherwise, parse table rows & process them
         rows = get_overview_rows(driver)
         if not rows:
-            print("No rows found (empty table). Stopping.")
+            print("No rows found; stopping.")
             break
 
-        for row in rows:
-            process_detail(driver, row["url"], row["id"], row["valid"])
-        
+        all_rows.extend(rows)
         page += 1
 
+    return all_rows
+
+def worker_process(roasts_chunk, username, password):
+    """
+    Each process runs this, spins up a ChromeDriver, logs in, 
+    and processes a subset of roasts (roasts_chunk).
+    """
+    driver = None
+    try:
+        driver = login_to_cropster(username, password)
+        for roast in roasts_chunk:
+            process_detail(
+                driver,
+                detail_url=roast["url"],
+                roast_id=roast["id"],
+                valid=roast["valid"],
+            )
+    finally:
+        if driver:
+            driver.quit()
 
 def main():
-    # Read credentials from environment
     username = os.getenv("CROPSTER_USERNAME")
     password = os.getenv("CROPSTER_PASSWORD")
     if not username or not password:
-        raise ValueError("Missing environment variables CROPSTER_USERNAME or CROPSTER_PASSWORD")
-    
-    driver = login_to_cropster(username, password)
+        raise ValueError("Missing env vars CROPSTER_USERNAME or CROPSTER_PASSWORD")
+
+    # Start ONE Selenium session just to gather data (Phase 1)
+    master_driver = login_to_cropster(username, password)
     try:
-        # Construct the filtered URL
         name_filter = os.getenv("ROAST_NAME")
         start_date = os.getenv("ROAST_DATE_START")
         end_date = os.getenv("ROAST_DATE_END")
-        process_all_pages(driver, name_filter, start_date, end_date)
+
+        all_roasts = gather_all_roasts(master_driver, name_filter, start_date, end_date)
+        print(f"Collected {len(all_roasts)} roasts in total.")
     finally:
-        driver.quit()
+        master_driver.quit()
+
+    # PHASE 2: Parallel processing
+    # ------------------------------------------------------------------
+    # Decide how many worker processes you want. 
+    # For example, 4 processes.
+    num_workers = 4
+
+    # Chunk the roasts among the workers. 
+    # e.g., each process gets roughly len(all_roasts)/num_workers roasts.
+    chunk_size = max(1, len(all_roasts) // num_workers)
+    roast_chunks = [
+        all_roasts[i : i + chunk_size] 
+        for i in range(0, len(all_roasts), chunk_size)
+    ]
+
+    with ProcessPoolExecutor(max_workers=num_workers) as executor:
+        futures = []
+        for chunk in roast_chunks:
+            futures.append(
+                executor.submit(worker_process, chunk, username, password)
+            )
+        # Optionally: gather results (though 'process_detail' returns nothing)
+        for f in futures:
+            f.result()  # This will raise any exceptions encountered in the worker
+
+    print("All parallel tasks completed.")
 
 if __name__ == "__main__":
     main()
