@@ -116,7 +116,6 @@ def get_overview_rows(driver):
                 print("Skipping row; validity not found:", e)
                 continue
             rows_data.append({"id": roast_id, "url": link, "valid": valid})
-            break
     except Exception as e:
         print("Error extracting table rows:", e)
     return rows_data
@@ -218,7 +217,7 @@ def process_detail(driver, detail_url: str, roast_id: str, valid: bool):
     driver.close()
     driver.switch_to.window(driver.window_handles[0])
 
-def process_all_pages(driver):
+def process_all_pages(driver, name_filter: str, start_date: str, end_date: str):
     """
     Paginate purely by updating the 'page' parameter in the URL
     until we see the 'no matching records' text.
@@ -229,12 +228,12 @@ def process_all_pages(driver):
         
         # Construct the filtered URL with the current page
         filtered_url = construct_filtered_url(
-            name_filter="Guatemala",
-            start_date="2024-09-01",
-            end_date="2024-12-31",
+            name_filter,
+            start_date,
+            end_date,
         )
         driver.get(filtered_url + "&page=" + str(page))
-        time.sleep(5)  # wait for page to load; adjust as needed
+        time.sleep(10)  # wait for page to load; adjust as needed
 
         # Check if the "no data" element exists
         try:
@@ -269,12 +268,9 @@ def main():
     try:
         # Construct the filtered URL
         name_filter = os.getenv("ROAST_NAME")
-        start_date = os.getenv("ROAST_START_DATE")
-        end_date = os.getenv("ROAST_END_DATE")
-        filtered_url = construct_filtered_url(name_filter, start_date, end_date)
-        driver.get(filtered_url)
-        time.sleep(10)
-        process_all_pages(driver)
+        start_date = os.getenv("ROAST_DATE_START")
+        end_date = os.getenv("ROAST_DATE_END")
+        process_all_pages(driver, name_filter, start_date, end_date)
     finally:
         driver.quit()
 
