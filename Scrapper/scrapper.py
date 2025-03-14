@@ -268,9 +268,9 @@ def main():
     driver = login_to_cropster(username, password)
     try:
         # Construct the filtered URL
-        name_filter = "Guatemala"
-        start_date = "2024-09-01"
-        end_date = "2024-12-31"
+        name_filter = os.getenv("ROAST_NAME")
+        start_date = os.getenv("ROAST_START_DATE")
+        end_date = os.getenv("ROAST_END_DATE")
         filtered_url = construct_filtered_url(name_filter, start_date, end_date)
         driver.get(filtered_url)
         time.sleep(10)
