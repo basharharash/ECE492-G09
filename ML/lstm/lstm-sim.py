@@ -25,13 +25,13 @@ class LSTMRegressor(nn.Module):
 
 # 1. Load the saved model weights
 model = LSTMRegressor(input_dim=1, hidden_dim=64, num_layers=2, output_dim=1, dropout=0.1)
-model.load_state_dict(torch.load("lstm/lstm_regressor_v2.pt"))
+model.load_state_dict(torch.load("ML/lstm/lstm_regressor_v3.pt"))
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 model.to(device)
 model.eval()
 
 # 2. Load the CSV file simulating a real-time roast run.
-csv_file = "lstm/real_time_roast2.csv"  # Adjust the path as needed.
+csv_file = "ML/lstm/real_time_roast2.csv"  # Adjust the path as needed.
 df = pd.read_csv(csv_file)
 
 # 3. Set up a sliding window buffer and simulation parameters.

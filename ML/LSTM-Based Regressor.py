@@ -74,7 +74,7 @@ def train_model(model, train_loader, test_loader, epochs=40, lr=1e-3, device='cu
 if __name__ == "__main__":
     # Load the dataset from dataset.py
     window_size = 5
-    X_train, y_train, X_test, y_test = load_all_csv_files_separated(modified_dir='modified', window_size=window_size)
+    X_train, y_train, X_test, y_test = load_all_csv_files_separated(modified_dir='ML\modified', window_size=window_size)
     train_loader, test_loader = create_dataloaders(X_train, y_train, X_test, y_test, batch_size=128)
     
     # Initialize the LSTM model
@@ -86,5 +86,5 @@ if __name__ == "__main__":
     model = train_model(model, train_loader, test_loader, epochs=40, lr=1e-3, device=device)
     
     # Save the model
-    torch.save(model.state_dict(), "lstm_regressor_v2.pt")
+    torch.save(model.state_dict(), "lstm_regressor_v4.pt")
     print("Model saved as lstm_regressor.pt")
